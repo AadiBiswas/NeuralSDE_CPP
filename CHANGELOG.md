@@ -1,4 +1,39 @@
-## [0.1.0] - 2025-07-25
+# CHANGELOG
+All updates will be recorded here
+
+## [0.1.1] - 2025-07-28
+
+### Added
+- **include/OU.hpp**:
+  - Introduced **Ornstein–Uhlenbeck (OU)** stochastic process class.
+  - Implements mean-reverting dynamics via `theta`, `mu`, and `sigma` parameters.
+  - Subclass of the generic `SDE` interface for interchangeable simulation.
+
+- **plot_paths.py**:
+  - Python visualization script using `matplotlib`.
+  - Reads simulation outputs (`gbm_path.csv`, `ou_path.csv`) and plots trajectories for side-by-side comparison.
+  - Saves rendered output to `sde_paths.png`.
+
+### Enhanced
+- **src/main.cpp**:
+  - Modularized simulation logic into a reusable `simulate()` function accepting any `SDE`-compliant object.
+  - Extended main routine to run both GBM and OU processes, each outputting to its own CSV.
+  - Provides clean console output upon file generation.
+
+### Notes
+- This completes **Phase 1.3: OU Integration + Visualization**:
+  - The simulator now supports both **trend-following** (GBM) and **mean-reverting** (OU) dynamics.
+  - Users can easily extend support to additional processes via the `SDE` interface.
+  - Visualization script improves interpretability and quick debugging of stochastic paths.
+
+### Next
+- **Phase 2.0: Neural SDE Approximation**:
+  - Create a neural net that learns the underlying drift and diffusion functions of a process from simulated data.
+  - Implement training pipeline using `tiny-dnn` or `libtorch`.
+  - Compare learned process outputs against true SDE samples for forecast accuracy and realism.
+
+
+## [0.1.0] - 2025-07-27
 
 ### Added
 - **include/SDE.hpp**:

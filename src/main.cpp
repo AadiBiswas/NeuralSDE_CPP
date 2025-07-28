@@ -2,15 +2,12 @@
 #include <vector>
 #include <random>
 #include <fstream>
+#include <string>
 
 #include "../include/GBM.hpp"
+#include "../include/OU.hpp"
 
-int main() {
-    const double dt = 0.01;
-    const int steps = 1000;
-    const double x0 = 1.0;
-
-    GBM gbm(0.1, 0.2);  // mu = 0.1, sigma = 0.2
+void simulate(const SDE& process, const std::string& filename, double x0 = 1.0, double dt = 0.01, int steps = 1000) {
     std::vector<double> path(steps);
     path[0] = x0;
 
@@ -21,15 +18,24 @@ int main() {
         double t = i * dt;
         double x_prev = path[i - 1];
         double dW = dist(gen) * std::sqrt(dt);
-        double dx = gbm.drift(x_prev, t) * dt + gbm.diffusion(x_prev, t) * dW;
+        double dx = process.drift(x_prev, t) * dt + process.diffusion(x_prev, t) * dW;
         path[i] = x_prev + dx;
     }
 
-    std::ofstream out("gbm_path.csv");
+    std::ofstream out(filename);
     for (int i = 0; i < steps; ++i) {
         out << i * dt << "," << path[i] << "\n";
     }
 
-    std::cout << "GBM path saved to gbm_path.csv\n";
+    std::cout << filename << " written.\n";
+}
+
+int main() {
+    GBM gbm(0.1, 0.2);                      // mu = 0.1, sigma = 0.2
+    OU ou(1.5, 0.5, 0.1);                   // theta = 1.5, mu = 0.5, sigma = 0.1
+
+    simulate(gbm, "gbm_path.csv");
+    simulate(ou,  "ou_path.csv");
+
     return 0;
 }

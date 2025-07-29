@@ -1,6 +1,36 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.1.2] - 2025-07-29
+
+### Added
+- **include/data_loader.hpp**:
+  - Declares reusable `Dataset` and `Sample` typedefs for training format.
+  - Provides forward declaration for the dataset loader used in neural training.
+  - Serves as a standardized interface for all sliding window–based training pipelines.
+
+- **src/data_loader.cpp**:
+  - Loads time-series data from GBM/OU simulation CSV files.
+  - Extracts overlapping sliding windows of length `n` as inputs, with the `n+1`th value as label.
+  - Normalizes feature shape to be compatible with FCNs or MLP-style networks in future phases.
+
+### Enhanced
+- **CMakeLists.txt**:
+  - Updated build configuration to compile `data_loader.cpp` alongside the main simulator.
+  - Enables integration of neural preprocessing into full pipeline.
+
+### Notes
+- This completes **Checkpoint 2.1: Data Preprocessing for Neural Approximation**.
+- The simulator can now export raw paths, and the loader can consume them into training-ready samples.
+- Prepares foundation for neural net scaffolding and training loop in C++ via `tiny-dnn`.
+
+### Next
+- **Checkpoint 2.2: Neural Network Scaffolding**:
+  - Import `tiny-dnn` and build a lightweight feedforward architecture.
+  - Define training loop, loss function, and optimizer.
+  - Train on preprocessed GBM data and validate output against ground truth.
+
+
 ## [0.1.1] - 2025-07-28
 
 ### Added

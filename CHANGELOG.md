@@ -1,6 +1,46 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.0] - 2025-07-30
+
+### Added
+- **external/tiny-dnn**:
+  - Added as a Git submodule to provide a lightweight, header-only neural network library.
+  - Enables fast prototyping of regression-style networks for SDE approximation.
+
+- **include/neural.hpp**:
+  - Neural scaffolding for time-series forecasting.
+  - Provides:
+    - StandardScaler struct for per-feature normalization.
+    - `make_mlp()` factory function for building fully connected regression networks with custom hidden layers.
+  - Designed to integrate seamlessly with tiny-dnn and the existing data loader.
+
+- **src/train.cpp**:
+  - End-to-end training pipeline for Neural SDE approximation:
+    - Loads processed time-series data via `data_loader`.
+    - Applies standardization to improve numerical stability.
+    - Defines and trains a feedforward MLP on sliding-window input samples.
+    - Logs train/validation MSE per epoch.
+    - Saves trained model weights (`.tnn`) and scaler stats (`xscaler_stats.csv`, `yscaler_stats.csv`) to `/models`.
+
+### Enhanced
+- **CMakeLists.txt**:
+  - Extended build config to include `external/tiny-dnn` headers.
+  - Added new `trainer` executable for running neural approximation workflows independently of the simulator.
+  - Maintains modular separation between simulation (Euler–Maruyama) and learning (MLP).
+
+### Notes
+- This release completes **Checkpoint 2.2: Neural Network Scaffolding**:
+  - The project now supports **data generation (GBM, OU)** → **dataset preprocessing** → **neural network training** entirely in C++.
+  - Sets the foundation for future experiments in **data-driven drift/diffusion learning** and potential real-time forecasting.
+
+### Next
+- **Checkpoint 2.3: Neural Training Enhancements**:
+  - Add early stopping, learning rate scheduling, and CLI-configurable architecture (`--hidden 128 64`).
+  - Export predictions vs. true SDE paths to CSV for visual comparison.
+  - Prepare for experimentation with stochastic volatility processes and Neural SDE variants.
+
+
 ## [0.1.2] - 2025-07-29
 
 ### Added

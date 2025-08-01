@@ -1,6 +1,37 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.1] - 2025-08-01
+
+### Fixed
+- **include/neural.hpp**:
+  - Corrected improper use of non-existent `activation_type` in `make_mlp()` factory.
+  - Replaced erroneous activation type logic with `relu_layer` as default.
+  - Removed unused `identity_layer()` to resolve compilation errors.
+
+- **src/train.cpp**:
+  - Fixed undefined `mse_loss` error by explicitly including `tiny_dnn/loss/loss_function.h`.
+  - Adjusted activation handling to match updated neural scaffolding.
+  - Confirmed CLI training workflow compiles, executes, and saves `.tnn` weights on valid data.
+
+- **src/data_loader.cpp**:
+  - Hardened dataset loading against malformed CSV entries.
+  - Added line-by-line validation with `std::stof` inside `try/catch` to skip non-numeric data.
+  - Added warning output for corrupt or empty lines, improving transparency in dataset preprocessing.
+
+### Notes
+- This patch resolves critical bugs in **Checkpoint 2.2: Neural Network Scaffolding**, ensuring that:
+  - The entire training pipeline compiles cleanly across macOS Clang environments.
+  - CLI execution fails gracefully if input data is missing or malformed.
+  - Future checkpoints (e.g., 2.3–2.4) can safely build on top of this corrected base.
+
+### Next
+- **Checkpoint 2.3: Neural Training Enhancements**:
+  - Add CLI parameters for architecture tuning (`--hidden 128 64`).
+  - Implement validation-based early stopping and learning rate decay.
+  - Export predictions vs. ground truth to `.csv` for post-training diagnostics and visualization.
+
+
 ## [0.2.0] - 2025-07-30
 
 ### Added

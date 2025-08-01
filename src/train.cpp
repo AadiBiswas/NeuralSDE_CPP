@@ -23,7 +23,7 @@ void train_val_split(const std::vector<T>& X, const std::vector<T>& y,
     yv.assign(y.begin() + n_train, y.end());
 }
 
-// Convert Dataset (vector<pair<Sample, float>>) to tiny-dnn tensors
+// Convert Dataset to tiny-dnn tensors
 void dataset_to_tensors(const Dataset& ds,
                         std::vector<tiny_dnn::vec_t>& X,
                         std::vector<tiny_dnn::vec_t>& y) {
@@ -97,29 +97,27 @@ int main(int argc, char** argv) {
     train_val_split(X, y, args.val_ratio, Xtr, ytr, Xv, yv);
     std::cout << "Train samples: " << Xtr.size() << ", Val samples: " << Xv.size() << "\n";
 
-    // 4) Standardize inputs (and optionally outputs)
+    // 4) Standardize inputs and outputs
     StandardScaler xscaler;
     xscaler.fit(Xtr);
     xscaler.transform(Xtr);
     xscaler.transform(Xv);
 
-    // Optional: scale outputs (helps stability for certain SDEs)
     StandardScaler yscaler;
     yscaler.fit(ytr);
     yscaler.transform(ytr);
     yscaler.transform(yv);
 
-    // 5) Build model
+    // 5) Build model (ReLU MLP by default)
     const size_t input_dim = static_cast<size_t>(args.window);
-    auto net = make_mlp(input_dim, {64, 64}, activation_type::relu);
+    auto net = make_mlp(input_dim, {64, 64}, "relu");
 
-    // 6) Optimizer + loss
+    // 6) Optimizer + training
     adam optimizer;
     optimizer.alpha = args.lr;
 
-    // tiny-dnn fit() expects data as vector<vec_t>
-    // Use MSE loss for regression
-    auto mse = [](const vec_t& y_pred, const vec_t& y_true) {
+    // Custom metric for logging (avoid name clash with tiny_dnn::mse)
+    auto mse_metric = [](const vec_t& y_pred, const vec_t& y_true) {
         float loss = 0.f;
         for (size_t i = 0; i < y_pred.size(); ++i) {
             float d = static_cast<float>(y_pred[i]) - static_cast<float>(y_true[i]);
@@ -128,7 +126,6 @@ int main(int argc, char** argv) {
         return loss / static_cast<float>(y_pred.size());
     };
 
-    // 7) Training loop (manual epochs to log val loss)
     size_t steps_per_epoch = (Xtr.size() + args.batch - 1) / args.batch;
 
     for (int epoch = 1; epoch <= args.epochs; ++epoch) {
@@ -137,7 +134,6 @@ int main(int argc, char** argv) {
         std::iota(idx.begin(), idx.end(), 0);
         std::shuffle(idx.begin(), idx.end(), std::mt19937(std::random_device{}()));
 
-        // Mini-batch SGD
         float epoch_loss = 0.f;
         size_t seen = 0;
         for (size_t step = 0; step < steps_per_epoch; ++step) {
@@ -153,14 +149,14 @@ int main(int argc, char** argv) {
                 by.push_back(ytr[idx[k]]);
             }
 
-            // Forward + backward with mean_squared_error
-            net.fit<mse_loss>(optimizer, bx, by, 1, 1); // one batch, one epoch inside
+            // Backprop using built-in MSE loss
+            net.fit<mse>(optimizer, bx, by, 1, 1);
 
-            // Track batch loss (compute explicitly)
+            // Log batch loss
             float batch_loss = 0.f;
             for (size_t i = 0; i < bx.size(); ++i) {
                 vec_t pred = net.predict(bx[i]);
-                batch_loss += mse(pred, by[i]);
+                batch_loss += mse_metric(pred, by[i]);
             }
             epoch_loss += batch_loss;
             seen += (end - start);
@@ -171,7 +167,7 @@ int main(int argc, char** argv) {
         float val_loss = 0.f;
         for (size_t i = 0; i < Xv.size(); ++i) {
             vec_t pred = net.predict(Xv[i]);
-            val_loss += mse(pred, yv[i]);
+            val_loss += mse_metric(pred, yv[i]);
         }
         val_loss /= static_cast<float>(std::max<size_t>(1, Xv.size()));
 
@@ -180,9 +176,7 @@ int main(int argc, char** argv) {
                   << " | val_mse=" << val_loss << "\n";
     }
 
-    // 8) Save model and (optionally) scalers
-    // tiny-dnn supports save/load; we save to .tnn
-    // Ensure output directory exists or use current dir.
+    // Save model
     try {
         net.save(args.model_out);
         std::cout << "Model saved to " << args.model_out << "\n";
@@ -190,7 +184,7 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to save model: " << e.what() << "\n";
     }
 
-    // Save scaler stats (simple CSV)
+    // Save scalers next to current working directory (or pass a path)
     std::ofstream fx("xscaler_stats.csv");
     fx << "mean,std\n";
     for (size_t j = 0; j < xscaler.mean.size(); ++j) {

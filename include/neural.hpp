@@ -49,7 +49,6 @@ struct StandardScaler {
         }
     }
 
-    // For single row
     tiny_dnn::vec_t transform(const tiny_dnn::vec_t& row) const {
         tiny_dnn::vec_t out(row.size());
         for (size_t j = 0; j < row.size(); ++j) {
@@ -59,19 +58,37 @@ struct StandardScaler {
     }
 };
 
+// Append activation layer by name
+inline void append_activation(tiny_dnn::network<tiny_dnn::sequential>& net,
+                              const std::string& act_name) {
+    using namespace tiny_dnn;
+    if (act_name == "relu") {
+        net << relu_layer();
+    } else if (act_name == "tanh") {
+        net << tanh_layer();
+    } else if (act_name == "sigmoid") {
+        net << sigmoid_layer();
+    } else if (act_name == "leaky_relu") {
+        net << leaky_relu_layer();
+    } else {
+        // fallback: no activation layer
+        // (skip appending anything — keep previous fully_connected_layer output linear)
+    }
+}
+
 // Create a simple MLP for regression: input -> hidden... -> 1
 inline tiny_dnn::network<tiny_dnn::sequential>
 make_mlp(size_t input_dim,
          const std::vector<size_t>& hidden = {64, 64},
-         tiny_dnn::activation_type act = tiny_dnn::activation_type::relu) {
+         const std::string& act = "relu") {
 
     using namespace tiny_dnn;
     network<sequential> net;
     size_t prev = input_dim;
 
     for (size_t h : hidden) {
-        net << fully_connected_layer(prev, h)
-            << activation_layer(act);
+        net << fully_connected_layer(prev, h);
+        append_activation(net, act);
         prev = h;
     }
 

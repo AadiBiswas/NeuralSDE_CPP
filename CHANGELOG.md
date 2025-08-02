@@ -1,6 +1,37 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.2] - 2025-08-02
+
+### Enhanced
+- **src/train.cpp**:
+  - Added CLI support for variable hidden layers (`--hidden`) and activation functions (`--act`) for flexible network architectures.
+  - Implemented **early stopping** based on validation MSE with configurable patience.
+  - Added **learning rate decay on plateau** with `--lr_decay`, `--lr_patience`, and `--min_lr` flags.
+  - Integrated **best model checkpointing**, automatically saving the lowest validation loss model.
+  - Exports **validation predictions** (inverse-scaled) to CSV via `--pred_out`.
+  - Auto-creates necessary output directories for models and predictions, improving usability.
+
+- **include/neural.hpp**:
+  - Extended `StandardScaler` with inverse transformation methods for restoring original scale.
+  - Enhanced `make_mlp()` to accept arbitrary hidden layer configurations.
+  - Provided configurable activation layers to match CLI options for the trainer.
+
+- **docs/TRAINING.md**:
+  - Added dedicated neural training guide detailing usage of the trainer CLI, argument table, example commands, output descriptions, and tips for running from different working directories.
+
+### Notes
+- This release completes **Checkpoint 2.3: Neural Training Enhancements**, introducing advanced training features for better generalization and usability.
+- Early stopping and LR scheduling improve convergence behavior, while prediction exports aid diagnostics and visualization.
+- Training guide makes the neural approximation workflow clearer for contributors and recruiters.
+
+### Next
+- **Checkpoint 2.4: Extended Evaluation & Forecasting**:
+  - Add support for test-set evaluation, multi-step forecasting, and residual analysis.
+  - Build visualization scripts to compare predicted vs. true SDE paths over time.
+  - Prepare codebase for experimenting with stochastic volatility models and neural SDE variants.
+
+
 ## [0.2.1] - 2025-08-01
 
 ### Fixed

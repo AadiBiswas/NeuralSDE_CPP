@@ -56,6 +56,22 @@ struct StandardScaler {
         }
         return out;
     }
+
+    // Inverse transforms (for 1D targets or full vectors)
+    float inverse_single(float v) const {
+        // assume 1-D scaler usage for y; fall back if mean/std empty
+        float m = mean.empty() ? 0.f : mean[0];
+        float s = std.empty()  ? 1.f : std[0];
+        return v * (s == 0.f ? 1.f : s) + m;
+    }
+
+    tiny_dnn::vec_t inverse(const tiny_dnn::vec_t& row) const {
+        tiny_dnn::vec_t out(row.size());
+        for (size_t j = 0; j < row.size(); ++j) {
+            out[j] = row[j] * (std[j] == 0.f ? 1.f : std[j]) + mean[j];
+        }
+        return out;
+    }
 };
 
 // Append activation layer by name
@@ -71,8 +87,7 @@ inline void append_activation(tiny_dnn::network<tiny_dnn::sequential>& net,
     } else if (act_name == "leaky_relu") {
         net << leaky_relu_layer();
     } else {
-        // fallback: no activation layer
-        // (skip appending anything — keep previous fully_connected_layer output linear)
+        // fallback: no activation
     }
 }
 

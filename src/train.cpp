@@ -6,6 +6,7 @@
 #include <sstream>
 #include <filesystem>
 #include <numeric>
+#include <limits>
 
 #include "../include/data_loader.hpp"
 #include <tiny_dnn/tiny_dnn.h>
@@ -62,6 +63,19 @@ static inline std::vector<size_t> parse_hidden(const std::string& s, const std::
     return out;
 }
 
+// -------- Build standardized feature vector from RAW window using x-scaler --------
+static inline tiny_dnn::vec_t standardize_window(const std::vector<float>& raw_win,
+                                                 const StandardScaler& xscaler) {
+    tiny_dnn::vec_t v(raw_win.size());
+    // xscaler.mean/std are per-column stats (length == window)
+    for (size_t j = 0; j < raw_win.size(); ++j) {
+        float m = (j < xscaler.mean.size() ? xscaler.mean[j] : 0.f);
+        float s = (j < xscaler.std.size()  ? xscaler.std[j]  : 1.f);
+        v[j] = (raw_win[j] - m) / (s == 0.f ? 1.f : s);
+    }
+    return v;
+}
+
 // -------- Args --------
 struct Args {
     std::string data = "gbm_path.csv";
@@ -72,7 +86,7 @@ struct Args {
     float val_ratio = 0.2f;
     std::string model_out = "models/gbm_mlp.tnn";
 
-    // 2.3 additions
+    // 2.3
     std::string hidden = "64,64";
     std::string act = "relu";
     bool early_stop = true;
@@ -80,7 +94,11 @@ struct Args {
     float lr_decay = 0.5f;
     int lr_patience = 5;
     float min_lr = 1e-5f;
-    std::string pred_out = "models/val_predictions.csv";
+    std::string pred_out = "predictions/gbm_val_preds.csv";
+
+    // 2.4
+    int forecast_horizon = 100;
+    std::string forecast_out = "predictions/gbm_val_forecast.csv";
 };
 
 Args parse_args(int argc, char** argv) {
@@ -107,6 +125,9 @@ Args parse_args(int argc, char** argv) {
         else if (k == "--lr_patience") nexti(a.lr_patience);
         else if (k == "--min_lr") nextf(a.min_lr);
         else if (k == "--pred_out") nexts(a.pred_out);
+
+        else if (k == "--forecast_horizon") nexti(a.forecast_horizon);
+        else if (k == "--forecast_out") nexts(a.forecast_out);
     }
     return a;
 }
@@ -130,7 +151,9 @@ int main(int argc, char** argv) {
               << "  lr_decay=" << args.lr_decay << "\n"
               << "  lr_patience=" << args.lr_patience << "\n"
               << "  min_lr=" << args.min_lr << "\n"
-              << "  pred_out=" << args.pred_out << "\n";
+              << "  pred_out=" << args.pred_out << "\n"
+              << "  forecast_horizon=" << args.forecast_horizon << "\n"
+              << "  forecast_out=" << args.forecast_out << "\n";
 
     // Ensure output directories exist
     if (!args.model_out.empty()) {
@@ -140,6 +163,10 @@ int main(int argc, char** argv) {
     if (!args.pred_out.empty()) {
         fs::path pp(args.pred_out);
         if (!pp.parent_path().empty()) fs::create_directories(pp.parent_path());
+    }
+    if (!args.forecast_out.empty()) {
+        fs::path fp(args.forecast_out);
+        if (!fp.parent_path().empty()) fs::create_directories(fp.parent_path());
     }
 
     // 1) Load dataset
@@ -156,6 +183,7 @@ int main(int argc, char** argv) {
     // 3) Train/Val split
     std::vector<vec_t> Xtr, ytr, Xv, yv;
     train_val_split(X, y, args.val_ratio, Xtr, ytr, Xv, yv);
+    const size_t n_train = Xtr.size();
     std::cout << "Train samples: " << Xtr.size() << ", Val samples: " << Xv.size() << "\n";
 
     // 4) Standardize inputs and outputs
@@ -178,7 +206,6 @@ int main(int argc, char** argv) {
     adam optimizer;
     optimizer.alpha = args.lr;
 
-    // metric for logging
     auto mse_metric = [](const vec_t& y_pred, const vec_t& y_true) {
         float loss = 0.f;
         for (size_t i = 0; i < y_pred.size(); ++i) {
@@ -195,7 +222,7 @@ int main(int argc, char** argv) {
     int lr_wait = 0;
 
     for (int epoch = 1; epoch <= args.epochs; ++epoch) {
-        // Shuffle indices
+        // Shuffle
         std::vector<size_t> idx(Xtr.size());
         std::iota(idx.begin(), idx.end(), 0);
         std::shuffle(idx.begin(), idx.end(), std::mt19937(std::random_device{}()));
@@ -236,23 +263,17 @@ int main(int argc, char** argv) {
         }
         val_loss /= static_cast<float>(std::max<size_t>(1, Xv.size()));
 
-        // Checkpoint on improvement
         bool improved = val_loss + 1e-12f < best_val;
         if (improved) {
             best_val = val_loss;
             no_improve = 0;
             lr_wait = 0;
-            try {
-                net.save(args.model_out);
-            } catch (const std::exception& e) {
-                std::cerr << "Warning: failed to save model checkpoint: " << e.what() << "\n";
-            }
+            try { net.save(args.model_out); } catch (...) {}
         } else {
             no_improve++;
             lr_wait++;
         }
 
-        // LR decay on plateau
         if (lr_wait >= args.lr_patience && optimizer.alpha > args.min_lr) {
             optimizer.alpha = std::max(args.min_lr, optimizer.alpha * args.lr_decay);
             lr_wait = 0;
@@ -264,7 +285,6 @@ int main(int argc, char** argv) {
                   << " | val_mse=" << val_loss
                   << (improved ? "  (best ✓)" : "") << "\n";
 
-        // Early stopping
         if (args.early_stop && no_improve >= args.patience) {
             std::cout << "Early stopping triggered (patience=" << args.patience << ")\n";
             break;
@@ -290,19 +310,13 @@ int main(int argc, char** argv) {
         }
         fy.close();
 
-        std::cout << "Scaler stats saved to " << (mdir / "xscaler_stats.csv") << " and " << (mdir / "yscaler_stats.csv") << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "Warning: failed to save scaler stats: " << e.what() << "\n";
-    }
+        std::cout << "Scaler stats saved next to model\n";
+    } catch (...) {}
 
-    // Reload best model (if it exists) before exporting predictions
-    try {
-        net.load(args.model_out);
-    } catch (...) {
-        // ignore; use current net if load fails
-    }
+    // Reload best model (if exists) for evaluation
+    try { net.load(args.model_out); } catch (...) {}
 
-    // Export predictions on validation set (inverse-scaled)
+    // Export one-step predictions on validation set (inverse-scaled)
     if (!args.pred_out.empty() && !Xv.empty()) {
         fs::path pp(args.pred_out);
         if (!pp.parent_path().empty()) fs::create_directories(pp.parent_path());
@@ -317,6 +331,44 @@ int main(int argc, char** argv) {
         }
         pout.close();
         std::cout << "Validation predictions saved to " << pp << "\n";
+    }
+
+    // -------- 2.4: Recursive multi-step forecast over validation tail --------
+    if (args.forecast_horizon > 0 && !args.forecast_out.empty() && Xv.size() > 0) {
+        // Use the FIRST validation window as starting point, in RAW domain
+        // Reconstruct RAW window from ds[n_train].first
+        if (n_train < ds.size()) {
+            std::vector<float> curr_win_raw = ds[n_train].first; // length == window
+            size_t steps = static_cast<size_t>(args.forecast_horizon);
+            size_t max_steps_with_truth = std::min(steps, ds.size() - n_train); // we have ground truth for these
+
+            fs::path fp(args.forecast_out);
+            if (!fp.parent_path().empty()) fs::create_directories(fp.parent_path());
+            std::ofstream fcsv(fp);
+            fcsv << "step,true,pred\n";
+
+            for (size_t h = 0; h < steps; ++h) {
+                // Standardize current RAW window using x-scaler
+                tiny_dnn::vec_t x_std = standardize_window(curr_win_raw, xscaler);
+                tiny_dnn::vec_t yhat_std = net.predict(x_std);
+                float yhat_raw = yscaler.inverse_single(yhat_std[0]);
+
+                float y_true = std::numeric_limits<float>::quiet_NaN();
+                size_t i_val = n_train + h;
+                if (i_val < ds.size()) {
+                    y_true = ds[i_val].second; // ground truth next point for this window
+                }
+
+                fcsv << (h+1) << "," << y_true << "," << yhat_raw << "\n";
+
+                // Roll the window with predicted RAW value
+                curr_win_raw.erase(curr_win_raw.begin());
+                curr_win_raw.push_back(yhat_raw);
+            }
+
+            fcsv.close();
+            std::cout << "Recursive forecast saved to " << fp << "\n";
+        }
     }
 
     return 0;

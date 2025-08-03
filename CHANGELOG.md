@@ -1,6 +1,42 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.3] - 2025-08-03
+
+### Added
+- **docs/EVALUATION.md**:
+  - New evaluation guide for neural approximator results.
+  - Details how to interpret validation predictions, compute key metrics (MSE, MAE, RMSE), and plot predicted vs. true paths.
+  - Includes troubleshooting tips for diagnosing underfitting, overfitting, or poor generalization.
+
+### Enhanced
+- **README.md**:
+  - Added **Neural Training & Evaluation** section to project overview.
+  - Provides quick instructions for generating data, running the trainer, and evaluating learned models.
+  - Links to detailed training and evaluation docs for full workflows.
+
+- **src/train.cpp**:
+  - Introduced CLI flag `--forecast_horizon` to generate multi-step predictions.
+  - Automatically saves forecasted trajectories to `predictions/` for later analysis.
+  - Prepares output data for visualization scripts referenced in `docs/EVALUATION.md`.
+
+### Notes
+- This release completes **Checkpoint 2.4: Extended Evaluation & Forecasting**, expanding the project beyond basic training:
+  - Users can now produce both one-step and multi-step forecasts.
+  - Evaluation docs and README improvements make it easier to interpret and showcase results.
+- These additions set the foundation for:
+  - Automated comparison plots of learned vs. true SDE paths.
+  - Advanced evaluation metrics (e.g., R², directional accuracy).
+  - Future neural SDE experiments with stochastic volatility processes.
+
+### Next
+- **Checkpoint 2.5: Visualization & Diagnostics**:
+  - Implement Python scripts to plot training loss curves and forecast trajectories.
+  - Add residual error heatmaps for qualitative analysis.
+  - Build reporting utilities to summarize model performance across multiple SDE types.
+
+
+
 ## [0.2.2] - 2025-08-02
 
 ### Enhanced

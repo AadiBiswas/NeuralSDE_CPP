@@ -36,6 +36,46 @@ Ideal for researchers and developers working at the intersection of **quant fina
 - ✅ Visualization of multi-process trajectories  
 - ✅ Ready for extension to neural networks and uncertainty quantification
 
+## 🔬 Neural Training & Evaluation
+In addition to classical SDE simulations, this project includes a neural approximation module that learns drift/diffusion dynamics directly from generated paths.
+
+### 1️⃣ Data Generation
+Run the simulator to produce raw paths:
+```bash 
+./build/NeuralSDE_CPP  
+```
+
+This creates ```gbm_path.csv``` and/or ```ou_path.csv``` for use as training data.
+
+### 2️⃣ Train Neural MLP
+Use the trainer to learn one-step predictions from sliding windows:
+```bash 
+./build/trainer \
+  --data gbm_path.csv \
+  --window 20 \
+  --epochs 100 \
+  --batch 64 \
+  --lr 0.001 \
+  --hidden "128,64" \
+  --early_stop true \
+  --model_out models/gbm_mlp.tnn \
+  --pred_out predictions/gbm_val_preds.csv
+```
+
+### 3️⃣ Evaluate Model
+Quickly visualize validation predictions vs. ground truth:
+```bash 
+python3 docs/evaluation_plot.py
+```
+
+Alternatively, follow the instructions in:
+
+```docs/TRAINING.md``` — Full CLI guide
+
+```docs/EVALUATION.md``` — Metrics, plotting scripts, and diagnostics
+
+
+
 ---
 
 ## 🛠️ How to Build and Run (Mac/Linux)

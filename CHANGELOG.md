@@ -1,6 +1,40 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.5] - 2025-08-04
+
+### Added
+- **scripts/plot_predictions.py**:
+  - Visualization script to plot predicted vs. true values across training epochs.
+  - Consumes `val_loss_log.csv` and `full_val_preds.csv` to track model performance and detect overfitting.
+
+- **scripts/residual_analysis.py**:
+  - Residual diagnostics tool for evaluating model error patterns.
+  - Computes residuals (true - predicted), plots rolling mean/variance, and supports qualitative analysis of bias or drift.
+
+### Enhanced
+- **src/train.cpp**:
+  - Logs validation loss per epoch to `val_loss_log.csv` for training diagnostics.
+  - Exports full validation set predictions at every epoch to `full_val_preds.csv`, aiding in longitudinal model inspection.
+  - Preserves backwards compatibility with one-shot validation export and forecast output.
+
+### Notes
+- This release completes **Checkpoint 2.5: Visualization & Diagnostics**, making it easier to interpret training behavior over time.
+  - Residual analysis helps surface systematic prediction errors (e.g., trend-following lag or under-reactivity).
+  - Epoch-level logs support charting validation curves and aligning prediction patterns to training dynamics.
+
+- These additions enable future:
+  - Regression diagnostic tests (e.g., heteroscedasticity, autocorrelation).
+  - Visualizations for model comparison across multiple architectures or SDE types.
+  - Reporting templates for Jupyter or Streamlit-based dashboards.
+
+### Next
+- **Checkpoint 2.6: Interactive Dashboard (Optional)**:
+  - Wrap existing plots and logs into a single exploratory UI using Streamlit.
+  - Allow upload of `.csv` prediction files and compare different trained models interactively.
+  - Integrate real-time training logs for active monitoring.
+
+
 ## [0.2.3] - 2025-08-03
 
 ### Added

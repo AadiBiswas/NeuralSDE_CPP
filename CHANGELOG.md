@@ -1,6 +1,43 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.6] - 2025-08-05
+
+### Fixed
+- **src/train.cpp**:
+  - Patched bug in `train_val_split` logic and tensor misalignment during dataset conversion.
+  - Ensured proper shape consistency between training and validation batches in tiny-dnn.
+  - Resolved compilation failure due to incorrect call to `tiny_dnn::mse::f()`.
+
+- **CMakeLists.txt**:
+  - Linked `neural.cpp` to `trainer` target to expose implementation of core training functions.
+
+### Added
+- **src/neural.cpp**:
+  - Implemented `build_mlp()`, `save_scaler()`, and `standardize_dataset()` to support modular neural training.
+  - Enables clean linkage and scalable reuse across training and forecasting pipelines.
+
+- **scripts/plot_paths.py**:
+  - Forecast visualization scaffold to display predicted vs. actual values over a multi-step forecast horizon.
+  - Ingests `forecast_out.csv` and provides intuitive overlay for evaluation.
+
+### Enhanced
+- **include/neural.hpp**:
+  - Streamlined MLP architecture generation with named activation support (`relu`, `tanh`, etc.).
+  - Added inverse-transform helpers to `StandardScaler` for debugging predictions in natural scale.
+
+### Notes
+- This release finalizes the diagnostics infrastructure and debugging improvements begun in [0.2.5].
+  - All core neural utilities are now modularized and build-ready.
+  - Future checkpoints will build on this stable foundation for real-time dashboards and ensemble training.
+
+### Next
+- **Checkpoint 2.6: Interactive Dashboard (Optional)**:
+  - Integrate Streamlit for on-the-fly inspection of training logs and forecast files.
+  - Allow upload of `.csv` model predictions and visualize comparisons.
+  - Introduce model toggles, slider-based epoch selection, and overlay customization.
+
+
 ## [0.2.5] - 2025-08-04
 
 ### Added

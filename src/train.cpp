@@ -24,7 +24,7 @@ void train_val_split(const std::vector<T>& X, const std::vector<T>& y,
     size_t n_val = static_cast<size_t>(val_ratio * n);
     size_t n_train = n - n_val;
     Xtr.assign(X.begin(), X.begin() + n_train);
-    ytr.assign(y.begin(), y.begin() + n_train);
+    ytr.assign(y.begin(), X.begin() + n_train);
     Xv.assign(X.begin() + n_train, X.end());
     yv.assign(y.begin() + n_train, y.end());
 }
@@ -61,6 +61,19 @@ static inline std::vector<size_t> parse_hidden(const std::string& s, const std::
     }
     if (out.empty()) return dflt;
     return out;
+}
+
+// -------- Compute validation loss (MSE) over val set --------
+float compute_val_loss(tiny_dnn::network<tiny_dnn::sequential>& net,
+                       const std::vector<tiny_dnn::vec_t>& Xv,
+                       const std::vector<tiny_dnn::vec_t>& yv) {
+    float loss = 0.0f;
+    for (size_t i = 0; i < Xv.size(); ++i) {
+        auto y_pred = net.predict(Xv[i]);
+        float diff = y_pred[0] - yv[i][0];
+        loss += diff * diff;
+    }
+    return loss / static_cast<float>(Xv.size());
 }
 
 // -------- Build standardized feature vector from RAW window using x-scaler --------
@@ -125,23 +138,48 @@ Args parse_args(int argc, char** argv) {
     return a;
 }
 
-// Append before return 0;
-// Dump val_loss per epoch
-std::ofstream val_log("logs/val_loss_log.csv");
-val_log << "epoch,val_loss\n";
-for (int epoch = 1; epoch <= args.epochs; ++epoch) {
-    ... // inside training loop
-    val_log << epoch << "," << val_loss << "\n";
-}
-val_log.close();
+int main(int argc, char** argv) {
+    Args args = parse_args(argc, argv);
 
-// Dump predictions after every epoch
-std::ofstream ptrack("logs/full_val_preds.csv", std::ios::app);
-if (epoch == 1) ptrack << "epoch,idx,true,pred\n";
-for (size_t i = 0; i < Xv.size(); ++i) {
-    vec_t yhat = net.predict(Xv[i]);
-    float y_true = yscaler.inverse_single(yv[i][0]);
-    float y_pred = yscaler.inverse_single(yhat[0]);
-    ptrack << epoch << "," << i << "," << y_true << "," << y_pred << "\n";
+    Dataset raw_ds = load_dataset(args.data, args.window);
+    StandardScaler xscaler, yscaler;
+    Dataset ds = standardize_dataset(raw_ds, xscaler, yscaler);
+    save_scaler("logs/xscaler_stats.csv", xscaler);
+    save_scaler("logs/yscaler_stats.csv", yscaler);
+
+    std::vector<tiny_dnn::vec_t> X, y;
+    dataset_to_tensors(ds, X, y);
+    std::vector<tiny_dnn::vec_t> Xtr, ytr, Xv, yv;
+    train_val_split(X, y, args.val_ratio, Xtr, ytr, Xv, yv);
+
+    auto net = build_mlp(X[0].size(), parse_hidden(args.hidden), args.act);
+
+    tiny_dnn::adam optimizer;
+    optimizer.alpha = args.lr;
+
+    std::ofstream val_log("logs/val_loss_log.csv");
+    val_log << "epoch,val_loss\n";
+
+    std::ofstream ptrack("logs/full_val_preds.csv", std::ios::app);
+    ptrack << "epoch,idx,true,pred\n";
+
+    for (int epoch = 1; epoch <= args.epochs; ++epoch) {
+        net.train<tiny_dnn::mse>(optimizer, Xtr, ytr, args.batch, 1);
+
+        float val_loss = compute_val_loss(net, Xv, yv);
+        val_log << epoch << "," << val_loss << "\n";
+
+        for (size_t i = 0; i < Xv.size(); ++i) {
+            auto yhat = net.predict(Xv[i]);
+            float y_true = yscaler.inverse_single(yv[i][0]);
+            float y_pred = yscaler.inverse_single(yhat[0]);
+            ptrack << epoch << "," << i << "," << y_true << "," << y_pred << "\n";
+        }
+    }
+
+    val_log.close();
+    ptrack.close();
+
+    net.save(args.model_out);
+    return 0;
 }
-ptrack.close();

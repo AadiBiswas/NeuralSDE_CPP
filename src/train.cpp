@@ -24,7 +24,7 @@ void train_val_split(const std::vector<T>& X, const std::vector<T>& y,
     size_t n_val = static_cast<size_t>(val_ratio * n);
     size_t n_train = n - n_val;
     Xtr.assign(X.begin(), X.begin() + n_train);
-    ytr.assign(y.begin(), X.begin() + n_train);
+    ytr.assign(y.begin(), y.begin() + n_train);
     Xv.assign(X.begin() + n_train, X.end());
     yv.assign(y.begin() + n_train, y.end());
 }
@@ -107,6 +107,7 @@ struct Args {
     std::string pred_out = "predictions/gbm_val_preds.csv";
     int forecast_horizon = 100;
     std::string forecast_out = "predictions/gbm_val_forecast.csv";
+    std::string run_id = ""; // NEW: Optional run ID
 };
 
 Args parse_args(int argc, char** argv) {
@@ -134,6 +135,7 @@ Args parse_args(int argc, char** argv) {
         else if (k == "--pred_out") nexts(a.pred_out);
         else if (k == "--forecast_horizon") nexti(a.forecast_horizon);
         else if (k == "--forecast_out") nexts(a.forecast_out);
+        else if (k == "--run_id") nexts(a.run_id); // NEW
     }
     return a;
 }
@@ -181,5 +183,18 @@ int main(int argc, char** argv) {
     ptrack.close();
 
     net.save(args.model_out);
+
+    // -------- If run_id is provided, move outputs to dashboard-friendly structure --------
+    if (!args.run_id.empty()) {
+        fs::create_directories("logs/" + args.run_id);
+        fs::copy_file("logs/val_loss_log.csv", "logs/" + args.run_id + "/val_loss_log.csv", fs::copy_options::overwrite_existing);
+        fs::copy_file("logs/full_val_preds.csv", "logs/" + args.run_id + "/full_val_preds.csv", fs::copy_options::overwrite_existing);
+
+        if (fs::exists(args.forecast_out)) {
+            std::string forecast_renamed = "predictions/" + args.run_id + "_forecast.csv";
+            fs::copy_file(args.forecast_out, forecast_renamed, fs::copy_options::overwrite_existing);
+        }
+    }
+
     return 0;
 }

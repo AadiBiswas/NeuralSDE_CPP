@@ -1,6 +1,37 @@
 # CHANGELOG
 All updates will be recorded here
 
+## [0.2.7] - 2025-08-10
+
+### Added
+- **scripts/dashboard_app.py**:
+  - Fully interactive Streamlit dashboard for exploring model performance.
+  - Allows users to upload `val_loss_log.csv`, `full_val_preds.csv`, and forecast outputs for dynamic visualization.
+  - Includes toggles for run selection, forecast smoothing, and epoch slicing.
+
+- **scripts/run_exporter.py**:
+  - Utility script for exporting forecast runs to a standardized format.
+  - Automatically relocates `val_loss_log.csv`, `full_val_preds.csv`, and forecast CSVs to `logs/{run_id}/` and `predictions/{run_id}_forecast.csv`.
+  - Enables leaderboard-style run tracking and compatibility with the dashboard interface.
+
+### Enhanced
+- **src/train.cpp**:
+  - Introduced `--run_id` CLI argument for clean log and forecast export under a unified identifier.
+  - Automatically creates `logs/{run_id}/` and copies `val_loss_log.csv`, `full_val_preds.csv`, and forecast outputs.
+  - Prepares run structure for ingestion by `dashboard_app.py`.
+
+### Notes
+- This release completes **Checkpoint 2.6–2.7: Dashboard Integration and Exportable Runs**.
+  - Dashboard now enables real-time monitoring and comparison of multiple model runs.
+  - All logs and forecast outputs are structured for seamless integration and public display.
+
+### Next
+- **Checkpoint 2.8: Forecast Leaderboard + Ensemble Evaluation**:
+  - Add dashboard comparison of multiple models over same horizon.
+  - Compute ensemble statistics (MAE, RMSE, directional accuracy) across runs.
+  - Enable exporting summaries for model reports or notebooks.
+
+
 ## [0.2.6] - 2025-08-05
 
 ### Fixed
